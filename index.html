@@ -1,0 +1,373 @@
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>School ShareMarket - Firebase Version</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root{--bg:#0b1020;--card:#071225;--accent:#09c372;--muted:#9aa4b2;color-scheme:dark}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+    body{margin:0;background:var(--bg);color:#e6eef6}
+    header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.03)}
+    .brand h1{font-size:18px;margin:0}
+    .controls{display:flex;gap:10px;align-items:center}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:10px;color:inherit;cursor:pointer}
+    .container{padding:18px}
+    .auth-card{max-width:720px;margin:42px auto;background:var(--card);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    label{display:block;margin-top:8px;font-size:14px}
+    input,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    .layout{display:grid;grid-template-columns:1fr 450px;gap:18px;margin-top:18px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);min-height:120px}
+    .chart-card{background:var(--card);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.03);min-height:420px}
+    .muted{color:var(--muted);font-size:13px}
+    .admin-panel{background:#071426;padding:12px;border-radius:8px}
+    .hidden{display:none}
+    table{width:100%;border-collapse:collapse}
+    td,th{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left}
+    @media (max-width:980px){.layout{grid-template-columns:1fr} .grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:600px){.grid{grid-template-columns:repeat(1,1fr)} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><h1>School ShareMarket</h1><div class="muted">Demat + Trading (Demo) • Finnhub</div></div>
+    <div class="controls"><div class="muted">Background</div><input id="bgColor" type="color" /></div>
+  </header>
+
+  <div class="container">
+
+    <!-- AUTH / DEMAT FORM -->
+    <div id="authView" class="auth-card">
+      <h2 id="authTitle">Welcome — Create account or Login</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button id="showSignup">Sign up</button>
+        <button id="showLogin">Log in</button>
+      </div>
+
+      <div id="signupForm" class="hidden">
+        <label>Full name</label>
+        <input id="suName" placeholder="Your full name" />
+        <label>Email</label>
+        <input id="suEmail" type="email" />
+        <label>Password</label>
+        <input id="suPass" type="password" />
+        <div style="margin-top:12px"><button id="doSignup">Create account</button></div>
+        <div class="muted" style="margin-top:8px">Starting virtual balance: ₹100,000</div>
+      </div>
+
+      <div id="loginForm" class="hidden">
+        <label>Email</label>
+        <input id="liEmail" type="email" />
+        <label>Password</label>
+        <input id="liPass" type="password" />
+        <div style="margin-top:12px"><button id="doLogin">Log in</button></div>
+        <div style="margin-top:8px" class="muted">If you are the admin, use your admin email here.</div>
+      </div>
+
+      <div id="authMsg" class="muted" style="margin-top:12px"></div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="appView" class="hidden">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+        <div>
+          <h2 id="welcomeUser">Hi —</h2>
+          <div class="muted">Balance: ₹<span id="userBalance">0</span> | Net worth: ₹<span id="userNet">0</span></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="btnLogout">Logout</button>
+          <button id="btnAdmin" class="hidden">Admin Panel</button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div>
+          <div class="grid" id="stockGrid"></div>
+        </div>
+
+        <div class="right">
+          <div class="chart-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div id="selectedName" style="font-weight:600">Select a stock</div>
+                <div id="selectedSymbol" class="muted small">---</div>
+              </div>
+              <div>
+                <select id="chartRange"><option value="D">1M</option><option value="W">6M</option><option value="M">1Y</option><option value="Y">Max</option></select>
+              </div>
+            </div>
+            <div style="height:300px;margin-top:12px">
+              <canvas id="mainChart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-top:12px">
+            <h3>Your Portfolio</h3>
+            <div id="portfolioArea" style="margin-top:8px"></div>
+          </div>
+
+          <div id="adminArea" class="admin-panel hidden" style="margin-top:12px">
+            <h3>Admin: Users</h3>
+            <div id="adminUsers"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUY/SELL Modal -->
+    <div id="tradeModal" class="hidden" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:100">
+      <div style="background:var(--card);padding:16px;border-radius:10px;width:420px">
+        <h3 id="tradeTitle">Trade</h3>
+        <div class="muted" id="tradeSymbol"></div>
+        <label>Price (live)</label>
+        <input id="tradePrice" disabled />
+        <label>Quantity</label>
+        <input id="tradeQty" type="number" min="1" value="1" />
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="confirmBuy">Buy</button>
+          <button id="confirmSell">Sell</button>
+          <button id="closeTrade">Cancel</button>
+        </div>
+        <div id="tradeMsg" class="muted" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /***** CONFIG - replace these with your values BEFORE deploying *****/
+    // Firebase config: go to Firebase Console -> Project Settings -> SDK setup and config
+    // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBa_fJN3xt6dias0bBa5dSxYMFtWWH39IA",
+  authDomain: "school-stock-website.firebaseapp.com",
+  projectId: "school-stock-website",
+  storageBucket: "school-stock-website.firebasestorage.app",
+  messagingSenderId: "9711095333",
+  appId: "1:9711095333:web:f90d4ecd1c93308b7979cc"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+    // Finnhub key (paste your key)
+    const FINNHUB_KEY = 'd3bm7n1r01qqg7bv706gd3bm7n1r01qqg7bv7070';
+
+    // Admin email for admin functions (change to your admin email)
+    const ADMIN_EMAIL = 'admin6@vse.com';
+
+    /***** END CONFIG *****/
+
+    // default stocks list (will be copied into Firestore 'config/stocks' if missing)
+    const DEFAULT_STOCKS = [
+      {symbol:'RELIANCE.NS', name:'ORGANISING DEPARTMENT'},
+      {symbol:'TCS.NS', name:'TECH DEPARTMENT'},
+      {symbol:'INFY.NS', name:'MODELS DEPARTMENT'},
+      {symbol:'HDFCBANK.NS', name:'FINANCE DEPARTMENT'},
+      {symbol:'ICICIBANK.NS', name:'FOODSTALL DEPARTMENT'},
+      {symbol:'SBIN.NS', name:'STALLS DEPARTMENT'},
+      {symbol:'HINDUNILVR.NS', name:'GAMES DEPARTMENT'},
+      {symbol:'BHARTIARTL.NS', name:'PHOTOGRAPHY DEPARTMENT'},
+      {symbol:'LT.NS', name:'SEMINAR DEPARTMENT'}
+    ];
+
+    // init firebase
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // shortcuts
+    const $ = (s)=>document.querySelector(s);
+
+    // UI elements
+    const authView = $('#authView');
+    const appView = $('#appView');
+    const signupForm = $('#signupForm');
+    const loginForm = $('#loginForm');
+    const authMsg = $('#authMsg');
+    const welcomeUser = $('#welcomeUser');
+    const userBalance = $('#userBalance');
+    const userNet = $('#userNet');
+    const stockGrid = $('#stockGrid');
+    const mainChartCtx = document.getElementById('mainChart').getContext('2d');
+    let mainChart = null;
+
+    let currentUser = null; // firebase user
+    let currentUserDoc = null; // firestore user doc data
+    let appConfig = { stocks: DEFAULT_STOCKS };
+
+    // show auth forms toggles
+    $('#showSignup').addEventListener('click', ()=>{ signupForm.classList.remove('hidden'); loginForm.classList.add('hidden'); $('#authTitle').textContent='Create Demat Account'; });
+    $('#showLogin').addEventListener('click', ()=>{ loginForm.classList.remove('hidden'); signupForm.classList.add('hidden'); $('#authTitle').textContent='Login to Demat Account'; });
+
+    // signup
+    $('#doSignup').addEventListener('click', async ()=>{
+      const name = $('#suName').value.trim(); const email = $('#suEmail').value.trim(); const pass = $('#suPass').value;
+      if(!name||!email||!pass){ authMsg.textContent='Please fill all fields'; return; }
+      try{
+        const cu = await auth.createUserWithEmailAndPassword(email,pass);
+        const uid = cu.user.uid;
+        // create user doc
+        await db.collection('users').doc(uid).set({
+          name, email, balance:100000, holdings:{}, transactions:[], createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        authMsg.textContent='Account created! Redirecting...';
+      }catch(e){ console.error(e); authMsg.textContent = 'Error: '+e.message; }
+    });
+
+    // login
+    $('#doLogin').addEventListener('click', async ()=>{
+      const email = $('#liEmail').value.trim(); const pass = $('#liPass').value;
+      if(!email||!pass){ authMsg.textContent='Please enter email & password'; return; }
+      try{ await auth.signInWithEmailAndPassword(email,pass); }catch(e){ authMsg.textContent='Login error: '+e.message; }
+    });
+
+    // auth state
+    auth.onAuthStateChanged(async user=>{
+      if(user){
+        currentUser = user;
+        // load or create user doc
+        const userRef = db.collection('users').doc(user.uid);
+        const snap = await userRef.get();
+        if(!snap.exists){
+          // create with defaults
+          await userRef.set({ name: user.displayName||'', email: user.email, balance:100000, holdings:{}, transactions:[], createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        }
+        currentUserDoc = (await userRef.get()).data();
+        // open app
+        authView.classList.add('hidden'); appView.classList.remove('hidden'); $('#authMsg').textContent='';
+        // load app config (stocks)
+        await ensureConfig();
+        await renderStocks();
+        await refreshUserData();
+        // admin UI
+        if(user.email===ADMIN_EMAIL){ $('#btnAdmin').classList.remove('hidden'); $('#adminArea').classList.remove('hidden'); loadAdminUsers(); } else { $('#btnAdmin').classList.add('hidden'); $('#adminArea').classList.add('hidden'); }
+      } else {
+        // logged out
+        currentUser = null; currentUserDoc = null; authView.classList.remove('hidden'); appView.classList.add('hidden');
+      }
+    });
+
+    // logout
+    $('#btnLogout').addEventListener('click', ()=>auth.signOut());
+
+    // ensure config doc exists
+    async function ensureConfig(){
+      const docRef = db.collection('config').doc('stocks');
+      const snap = await docRef.get();
+      if(!snap.exists){ await docRef.set({list: DEFAULT_STOCKS}); appConfig.stocks = DEFAULT_STOCKS; }
+      else { appConfig.stocks = snap.data().list || DEFAULT_STOCKS; }
+    }
+
+    // render stock grid
+    async function renderStocks(){ stockGrid.innerHTML='';
+      for(const s of appConfig.stocks){
+        const card = document.createElement('div'); card.className='card'; card.dataset.symbol = s.symbol;
+        card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${s.name}</strong><div class="muted">${s.symbol}</div></div><div><div class="muted">Price</div><div data-price>—</div></div></div><div style="margin-top:8px"><button class='buyBtn'>Buy</button> <button class='sellBtn'>Sell</button></div>`;
+        stockGrid.appendChild(card);
+        // attach events
+        card.addEventListener('click', (e)=>{ if(e.target.classList.contains('buyBtn')||e.target.classList.contains('sellBtn')) return; selectStock(s.symbol); });
+        card.querySelector('.buyBtn').addEventListener('click',(e)=>openTradeModal(s.symbol,'buy'));
+        card.querySelector('.sellBtn').addEventListener('click',(e)=>openTradeModal(s.symbol,'sell'));
+        // fetch and show price
+        (async()=>{ const q = await fetchQuote(s.symbol); const priceEl = card.querySelector('[data-price]'); if(q && q.c!==undefined) priceEl.textContent = '₹'+q.c.toFixed(2); else priceEl.textContent='—'; })();
+      }
+    }
+
+    // select stock show chart
+    async function selectStock(symbol){ $('#selectedSymbol').textContent = symbol; const s = appConfig.stocks.find(x=>x.symbol===symbol); $('#selectedName').textContent = s? s.name : symbol; $('#chartRange').value='D'; await drawChart(symbol,'D'); }
+    $('#chartRange').addEventListener('change', ()=>{ const symbol = $('#selectedSymbol').textContent; if(symbol) drawChart(symbol, $('#chartRange').value); });
+
+    // fetch finnub quote
+    async function fetchQuote(symbol){ try{ const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`; const r = await fetch(url); return await r.json(); }catch(e){console.error(e); return null;} }
+
+    // fetch candles and draw chart
+    async function drawChart(symbol, resolution){ $('#selectedName').textContent = 'Loading chart...'; const now = Math.floor(Date.now()/1000); const from = now - 365*24*3600; // 1 year
+      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${now}&token=${FINNHUB_KEY}`;
+      try{
+        const res = await fetch(url); const data = await res.json(); if(!data || data.s!=='ok'){ $('#selectedName').textContent = symbol + ' (no data)'; return; }
+        const labels = data.t.map(ts=>new Date(ts*1000).toLocaleDateString()); const closes = data.c;
+        if(mainChart) mainChart.destroy(); mainChart = new Chart(mainChartCtx, { type:'line', data:{ labels, datasets:[{ label:symbol, data:closes, fill:true }] }, options:{ responsive:true, maintainAspectRatio:false } });
+        $('#selectedName').textContent = symbol;
+      }catch(e){ console.error(e); $('#selectedName').textContent = symbol + ' (error)'; }
+    }
+
+    // refresh user data & portfolio
+    async function refreshUserData(){ if(!currentUser) return; const snap = await db.collection('users').doc(currentUser.uid).get(); currentUserDoc = snap.data(); welcomeUser.textContent = `Hi — ${currentUserDoc.name||currentUser.email}`; userBalance.textContent = Number(currentUserDoc.balance||0).toFixed(2);
+      // compute portfolio current value
+      let holdings = currentUserDoc.holdings||{}; let totalHoldingsValue = 0;
+      const rows=[];
+      for(const sym of Object.keys(holdings)){
+        const qty = holdings[sym]; const q = await fetchQuote(sym); const price = (q && q.c)? q.c : 0; const value = price * qty; totalHoldingsValue += value; rows.push({sym, qty, price, value}); }
+      userNet.textContent = (Number(currentUserDoc.balance||0) + totalHoldingsValue).toFixed(2);
+      // render portfolio table
+      const pa = $('#portfolioArea'); pa.innerHTML = '';
+      if(rows.length===0) pa.innerHTML = '<div class="muted">No holdings</div>'; else{
+        const table = document.createElement('table'); table.innerHTML = `<tr><th>Symbol</th><th>Qty</th><th>Price</th><th>Value</th></tr>`;
+        for(const r of rows){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.sym}</td><td>${r.qty}</td><td>₹${r.price.toFixed(2)}</td><td>₹${r.value.toFixed(2)}</td>`; table.appendChild(tr); }
+        pa.appendChild(table);
+      }
+    }
+
+    // open trade modal
+    let tradeContext = null;
+    async function openTradeModal(symbol, mode){ tradeContext = {symbol, mode}; $('#tradeModal').classList.remove('hidden'); $('#tradeTitle').textContent = `${mode==='buy'?'Buy':'Sell'} ${symbol}`; $('#tradeSymbol').textContent = symbol; $('#tradeMsg').textContent=''; const q = await fetchQuote(symbol); $('#tradePrice').value = q && q.c? q.c.toFixed(2):'0'; $('#tradeQty').value = 1; }
+    $('#closeTrade').addEventListener('click', ()=>$('#tradeModal').classList.add('hidden'));
+
+    // confirm buy
+    $('#confirmBuy').addEventListener('click', async ()=>{ if(!currentUser) return alert('Not logged in'); const qty = Number($('#tradeQty').value); const price = Number($('#tradePrice').value); if(qty<=0) return alert('Invalid qty'); const cost = qty*price; try{
+        const userRef = db.collection('users').doc(currentUser.uid);
+        await db.runTransaction(async (tx)=>{
+          const ud = (await tx.get(userRef)).data(); if(!ud) throw 'User not found'; if((ud.balance||0) < cost) throw 'Insufficient balance';
+          const newBalance = (ud.balance||0) - cost; tx.update(userRef, { balance: newBalance, [`holdings.${tradeContext.symbol}`]: (ud.holdings && ud.holdings[tradeContext.symbol] ? ud.holdings[tradeContext.symbol] + qty : qty), transactions: firebase.firestore.FieldValue.arrayUnion({type:'buy', symbol: tradeContext.symbol, qty, price, time: firebase.firestore.FieldValue.serverTimestamp()}) });
+        });
+        $('#tradeMsg').textContent = 'Bought!'; $('#tradeModal').classList.add('hidden'); await refreshUserData();
+      }catch(e){ console.error(e); $('#tradeMsg').textContent = 'Error: '+e; }
+    });
+
+    // confirm sell
+    $('#confirmSell').addEventListener('click', async ()=>{ if(!currentUser) return alert('Not logged in'); const qty = Number($('#tradeQty').value); const price = Number($('#tradePrice').value); if(qty<=0) return alert('Invalid qty'); try{
+        const userRef = db.collection('users').doc(currentUser.uid);
+        await db.runTransaction(async (tx)=>{
+          const ud = (await tx.get(userRef)).data(); if(!ud) throw 'User not found'; const owned = (ud.holdings && ud.holdings[tradeContext.symbol]) || 0; if(owned < qty) throw 'Not enough shares to sell';
+          const newQty = owned - qty; const updates = { balance: (ud.balance||0) + qty*price, transactions: firebase.firestore.FieldValue.arrayUnion({type:'sell', symbol: tradeContext.symbol, qty, price, time: firebase.firestore.FieldValue.serverTimestamp()}) };
+          updates[`holdings.${tradeContext.symbol}`] = newQty>0? newQty : firebase.firestore.FieldValue.delete(); tx.update(userRef, updates);
+        });
+        $('#tradeMsg').textContent = 'Sold!'; $('#tradeModal').classList.add('hidden'); await refreshUserData();
+      }catch(e){ console.error(e); $('#tradeMsg').textContent = 'Error: '+e; }
+    });
+
+    // admin: load users list (only works if your Firestore rules allow admin email)
+    async function loadAdminUsers(){ if(!currentUser) return; const q = await db.collection('users').get(); const container = $('#adminUsers'); container.innerHTML = '';
+      q.forEach(doc=>{ const d = doc.data(); const div = document.createElement('div'); div.style.marginBottom='8px'; div.innerHTML = `<strong>${d.name||d.email}</strong> (${d.email}) - Balance: ₹${(d.balance||0).toFixed(2)} <button data-uid='${doc.id}'>View</button>`; container.appendChild(div); div.querySelector('button').addEventListener('click', ()=>viewUser(doc.id)); }); }
+    async function viewUser(uid){ const doc = await db.collection('users').doc(uid).get(); const d = doc.data(); alert(JSON.stringify(d,null,2)); }
+
+    // background color
+    $('#bgColor').addEventListener('input', e=>{ document.body.style.background = e.target.value; });
+
+    // initial fetch of quotes periodically
+    setInterval(async ()=>{ // update small price labels
+      const cards = document.querySelectorAll('.card'); for(const card of cards){ const sym = card.dataset.symbol; const q = await fetchQuote(sym); const el = card.querySelector('[data-price]'); if(q && q.c!==undefined) el.textContent = '₹'+q.c.toFixed(2); }
+      if(currentUser) refreshUserData(); }, 60_000);
+
+    // helper: renderStocks called at login and config changes
+
+    // initialize default values for config if first-run
+    // (the ensureConfig call above will create the default stocks doc if missing)
+
+  </script>
+</body>
+</html>
+```
